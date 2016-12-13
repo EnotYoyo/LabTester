@@ -5,8 +5,10 @@ from PyQt5.QtCore import Qt
 import form, sys
 from collections import OrderedDict
 import json
+from PyQt5.QtWidgets import QFileDialog
 
 json_object = OrderedDict()
+chosen_filename = None
 
 def save_json():
     global json_object
@@ -197,7 +199,13 @@ class formManager():
             # TODO: start selected tests
             print(tests)
 
+    def filename_callback(self):
+        global chosen_filename
+        chosen_filename = QFileDialog.getOpenFileName(filter='*.pl')[0]
+
     def all_init(self):
+        self.mainWindow.actionOpen.triggered.connect(self.filename_callback)
+
         # create all models
         self.mainWindow.m_tests.setModel(QStandardItemModel())
         self.mainWindow.t_tests.setModel(QStandardItemModel())
