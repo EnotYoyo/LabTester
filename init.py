@@ -17,7 +17,7 @@ def open_json():
     global json_object
     try:
         with open('data.txt', 'r') as inputfile:
-            json_object = json.load(inputfile)
+            json_object = json.load(inputfile, object_pairs_hook=OrderedDict)
 
     except:
         json_object = OrderedDict()
@@ -28,11 +28,19 @@ class functions():
         self.object = objects
         global json_object
         self.json_object = json_object
+        # this is crutch!
+        # because in qt first call clicked_labs is pseudo call
+        self.first_change = 1
 
     def key_press_tests(self, event):
         if event.key() == Qt.Key_Delete:
             for index in self.object[3].selectedIndexes():
-                self.object[3].model().removeRow(index.row())
+                for lab in self.object[4].selectedIndexes():
+                    labs = json_object[lab.data()]
+                    labs.pop(index.data(), None)
+                    json_object[lab.data()] = labs
+                    save_json()
+                    self.object[3].model().removeRow(index.row())
         if event.key() == Qt.Key_Escape:
             self.object[3].clearSelection()
             self.clear()
@@ -45,12 +53,17 @@ class functions():
             self.object[0].clearSelection()
 
     def clicked_labs(self, event):
+        if self.first_change == 1:
+            self.first_change = 0
+            return
         self.object[3].model().clear()
         self.clear()
         for test in self.json_object[event.data()]:
             self.object[3].model().appendRow(self.create_item(test))
 
     def clicked_tests(self, event):
+        if len(self.object[3].selectedIndexes()) == 0:
+            return
         self.object[0].model().clear()
         self.object[1].clear()
         self.object[2].clear()
@@ -96,9 +109,10 @@ class functions():
         self.clear()
 
     def clear(self):
-        self.object[2].clear()
-        self.object[0].model().clear()
         self.object[1].clear()
+        self.object[0].model().removeRows(0, self.object[0].model().rowCount())
+        self.object[2].clear()
+
 
 class formManager():
 
@@ -116,6 +130,16 @@ class formManager():
             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
             item.setCheckable(True)
             self.mainWindow.t_tests.model().appendRow(item)
+
+    # callback
+    def delete_key(self, event):
+        if event.key() == Qt.Key_Delete:
+            for index in self.mainWindow.t_labs.selectedIndexes():
+                json_object.pop(index.data(), None)
+                save_json()
+                self.mainWindow.t_labs.model().removeRow(index.row())
+        if event.key() == Qt.Key_Escape:
+            self.mainWindow.t_labs.clearSelection()
 
     # callback
     def clear_labs(self):
@@ -140,11 +164,16 @@ class formManager():
     def load_labs(self):
         for keys in self.json_object:
             self.mainWindow.t_labs.model().appendRow(functions.create_item(keys))
+        for keys in self.json_object:
+            self.mainWindow.a_labs.model().appendRow(functions.create_item(keys))
+        for keys in self.json_object:
+            self.mainWindow.m_labs.model().appendRow(functions.create_item(keys))
 
     def clear_selections(self):
-        self.mainWindow.a_tests.clearSelection()
-        self.mainWindow.m_tests.clearSelection()
-        self.mainWindow.t_tests.clearSelection()
+        self.mainWindow.tabWidget.clearFocus()
+        self.mainWindow.a_tests.model().clear()
+        self.mainWindow.m_tests.model().clear()
+        self.mainWindow.t_tests.model().clear()
         self.m_functions.clear()
         self.a_functions.clear()
         for index in self.mainWindow.a_labs.selectedIndexes():
@@ -154,6 +183,20 @@ class formManager():
         for index in self.mainWindow.t_labs.selectedIndexes():
             self.clicked(index)
 
+    def start_all_tests(self):
+        for lab in self.mainWindow.t_labs.selectedIndexes():
+            tests = json_object[lab.data()]
+            # TODO: start all tests
+            print(tests)
+
+    def start_selected_tests(self):
+        for lab in self.mainWindow.t_labs.selectedIndexes():
+            model = self.mainWindow.t_tests.model()
+            tests = [(model.index(row, 0).data(), json_object[lab.data()][model.index(row, 0).data()])
+                     for row in range(model.rowCount()) if model.item(row).checkState() == QtCore.Qt.Checked]
+            # TODO: start selected tests
+            print(tests)
+
     def all_init(self):
         # create all models
         self.mainWindow.m_tests.setModel(QStandardItemModel())
@@ -161,10 +204,9 @@ class formManager():
         self.mainWindow.a_tests.setModel(QStandardItemModel())
         self.mainWindow.m_test.setModel(QStandardItemModel())
         self.mainWindow.a_test.setModel(QStandardItemModel())
-        labModels = QStandardItemModel()
-        self.mainWindow.t_labs.setModel(labModels)
-        self.mainWindow.m_labs.setModel(labModels)
-        self.mainWindow.a_labs.setModel(labModels)
+        self.mainWindow.t_labs.setModel(QStandardItemModel())
+        self.mainWindow.m_labs.setModel(QStandardItemModel())
+        self.mainWindow.a_labs.setModel(QStandardItemModel())
 
         self.m_functions = functions(self.mainWindow.m_test, self.mainWindow.m_label,
                                 self.mainWindow.m_name, self.mainWindow.m_tests, self.mainWindow.m_labs)
@@ -176,7 +218,7 @@ class formManager():
         self.mainWindow.a_test.keyPressEvent = self.a_functions.key_press
         self.mainWindow.m_tests.keyPressEvent = self.m_functions.key_press_tests
         self.mainWindow.a_tests.keyPressEvent = self.a_functions.key_press_tests
-        self.mainWindow.t_labs.keyPressEvent = functions(self.mainWindow.t_labs).key_press
+        self.mainWindow.t_labs.keyPressEvent = self.delete_key
 
         # clicked callback
         self.mainWindow.t_labs.selectionModel().currentChanged.connect(self.clicked)
@@ -212,7 +254,11 @@ class formManager():
         self.mainWindow.a_clear.pressed.connect(self.a_functions.clear)
         self.mainWindow.t_clear.pressed.connect(self.clear_labs)
 
+        self.mainWindow.t_start.pressed.connect(self.start_all_tests)
+        self.mainWindow.t_selected.pressed.connect(self.start_selected_tests)
         self.load_labs()
+        self.mainWindow.tabWidget.setCurrentIndex(0)
+        self.mainWindow.tabWidget.clearFocus()
 
 if __name__ == '__main__':
     open_json()

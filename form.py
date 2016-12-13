@@ -11,14 +11,18 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(595, 550)
-        MainWindow.setMinimumSize(QtCore.QSize(550, 550))
+        MainWindow.resize(600, 569)
+        MainWindow.setMinimumSize(QtCore.QSize(600, 569))
         MainWindow.setMaximumSize(QtCore.QSize(3000, 3000))
-        MainWindow.setStyleSheet("background-color: rgb(150, 255, 160)")
+        MainWindow.setStyleSheet("/*background-color: rgb(150, 255, 160)*/\n"
+"background-color: rgb(224, 255, 255);\n"
+"color: rgb(105, 105, 105);")
         self.centralWidget = QtWidgets.QWidget(MainWindow)
         self.centralWidget.setMinimumSize(QtCore.QSize(550, 550))
-        self.centralWidget.setStyleSheet("background-color: rgb(150, 255, 160);\n"
-"border: 1px solid rgb(170, 85, 255);")
+        self.centralWidget.setStyleSheet("/*background-color: rgb(150, 255, 160);\n"
+"border: 1px solid rgb(170, 85, 255);*/\n"
+"background-color: rgb(224, 255, 255);\n"
+"border: 1px solid rgb(211, 211, 211);")
         self.centralWidget.setObjectName("centralWidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralWidget)
         self.horizontalLayout.setContentsMargins(11, 11, 11, 11)
@@ -27,24 +31,25 @@ class Ui_MainWindow(object):
         self.tabWidget = QtWidgets.QTabWidget(self.centralWidget)
         self.tabWidget.setMinimumSize(QtCore.QSize(200, 200))
         self.tabWidget.setStyleSheet("QTabBar::tab {\n"
-"background-color: rgb(150, 255, 160);\n"
+"/*background-color: rgb(150, 255, 160);*/\n"
 "height: 25px; width: 150px;\n"
-"border: 1px solid rgb(170, 85, 255);\n"
-"color: rgb(85, 0, 127);\n"
+"/*border: 1px solid rgb(170, 85, 255);*/\n"
+"background-color: rgb(224, 255, 255);\n"
+"border: 1px solid rgb(211, 211, 211);\n"
+"color: rgb(105, 105, 105);\n"
 " }\n"
 "QTabBar::tab:selected, QTabBar::tab:hover {\n"
-"background-color: rgb(80, 255, 50);\n"
+"background-color: rgb(135, 206, 250);\n"
 "}\n"
 "QTabWidget::Pane { \n"
-"background-color: rgb(80, 255, 50);\n"
+"background-color: rgb(135, 206, 250);\n"
 "}\n"
 "\n"
 "\n"
 "")
         self.tabWidget.setObjectName("tabWidget")
         self.test = QtWidgets.QWidget()
-        self.test.setStyleSheet("color: rgb(85, 0, 127);\n"
-"")
+        self.test.setStyleSheet("color: rgb(105, 105, 105);")
         self.test.setObjectName("test")
         self.gridLayout = QtWidgets.QGridLayout(self.test)
         self.gridLayout.setContentsMargins(11, 11, 11, 11)
@@ -94,8 +99,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.label, 0, 0, 1, 2)
         self.tabWidget.addTab(self.test, "")
         self.manual = QtWidgets.QWidget()
-        self.manual.setStyleSheet("color: rgb(85, 0, 127);\n"
-"")
+        self.manual.setStyleSheet("color: rgb(105, 105, 105);")
         self.manual.setObjectName("manual")
         self.gridLayout_4 = QtWidgets.QGridLayout(self.manual)
         self.gridLayout_4.setContentsMargins(11, 11, 11, 11)
@@ -139,8 +143,7 @@ class Ui_MainWindow(object):
         self.gridLayout_4.setRowStretch(2, 100)
         self.tabWidget.addTab(self.manual, "")
         self.autotest = QtWidgets.QWidget()
-        self.autotest.setStyleSheet("color: rgb(85, 0, 127);\n"
-"")
+        self.autotest.setStyleSheet("color: rgb(105, 105, 105);")
         self.autotest.setObjectName("autotest")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.autotest)
         self.gridLayout_2.setContentsMargins(11, 11, 11, 11)
@@ -185,12 +188,22 @@ class Ui_MainWindow(object):
         self.horizontalLayout.addWidget(self.tabWidget)
         MainWindow.setCentralWidget(self.centralWidget)
         self.menuBar = QtWidgets.QMenuBar(MainWindow)
-        self.menuBar.setGeometry(QtCore.QRect(0, 0, 595, 19))
+        self.menuBar.setGeometry(QtCore.QRect(0, 0, 600, 19))
+        self.menuBar.setStyleSheet("background-color: rgb(224, 255, 255);\n"
+"color: rgb(105, 105, 105);")
         self.menuBar.setObjectName("menuBar")
+        self.menuFile = QtWidgets.QMenu(self.menuBar)
+        self.menuFile.setStyleSheet("background-color: rgb(224, 255, 255);\n"
+"color: rgb(105, 105, 105);")
+        self.menuFile.setObjectName("menuFile")
         MainWindow.setMenuBar(self.menuBar)
+        self.actionOpen = QtWidgets.QAction(MainWindow)
+        self.actionOpen.setObjectName("actionOpen")
+        self.menuFile.addAction(self.actionOpen)
+        self.menuBar.addAction(self.menuFile.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -216,4 +229,6 @@ class Ui_MainWindow(object):
         self.a_save.setText(_translate("MainWindow", "Save"))
         self.a_name.setPlaceholderText(_translate("MainWindow", "Test Name"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.autotest), _translate("MainWindow", "Automatic Test Creator"))
+        self.menuFile.setTitle(_translate("MainWindow", "File"))
+        self.actionOpen.setText(_translate("MainWindow", "Open"))
 
