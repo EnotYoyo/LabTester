@@ -4,8 +4,23 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
 import form, sys
 from collections import OrderedDict
+import json
 
 json_object = OrderedDict()
+
+def save_json():
+    global json_object
+    with open('data.txt', 'w') as outfile:
+        json.dump(json_object, outfile)
+
+def open_json():
+    global json_object
+    try:
+        with open('data.txt', 'r') as inputfile:
+            json_object = json.load(inputfile)
+
+    except:
+        json_object = OrderedDict()
 
 class functions():
     # test, label, name, tests, labs
@@ -70,7 +85,6 @@ class functions():
         if len(text) == 0 or count == 0:
             return
 
-        print(self.json_object)
         if not(text in self.json_object[self.object[4].selectedIndexes()[0].data()]):
             self.object[3].model().appendRow(functions.create_item(text))
         test = []
@@ -78,6 +92,7 @@ class functions():
             row = self.object[0].model().index(row, 0)
             test.append(self.object[0].model().itemData(row)[0])
         self.json_object[self.object[4].selectedIndexes()[0].data()][text] = test
+        save_json()
         self.clear()
 
     def clear(self):
@@ -110,6 +125,7 @@ class formManager():
         self.m_functions.clear()
         self.a_functions.clear()
         self.json_object = OrderedDict()
+        save_json()
 
     # callback
     def add_lab(self):
@@ -117,8 +133,13 @@ class formManager():
         if len(text) == 0 or text in self.json_object:
             return
         self.json_object[text] = OrderedDict()
+        save_json()
         self.mainWindow.t_labs.model().appendRow(functions.create_item(text))
         self.mainWindow.t_label.clear()
+
+    def load_labs(self):
+        for keys in self.json_object:
+            self.mainWindow.t_labs.model().appendRow(functions.create_item(keys))
 
     def clear_selections(self):
         self.mainWindow.a_tests.clearSelection()
@@ -191,7 +212,10 @@ class formManager():
         self.mainWindow.a_clear.pressed.connect(self.a_functions.clear)
         self.mainWindow.t_clear.pressed.connect(self.clear_labs)
 
+        self.load_labs()
+
 if __name__ == '__main__':
+    open_json()
     app = QApplication(sys.argv)
     widget = QMainWindow()
     manager = formManager(widget)
