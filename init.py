@@ -6,9 +6,11 @@ import form, sys
 from collections import OrderedDict
 import json
 from PyQt5.QtWidgets import QFileDialog
+from swi_prolog import *
 
 json_object = OrderedDict()
 chosen_filename = None
+prolog = None
 
 def save_json():
     global json_object
@@ -74,7 +76,10 @@ class functions():
         for labs in self.object[4].selectedIndexes():
             self.object[2].setText(event.data())
             for command in json_object[labs.data()][event.data()]:
-                self.object[0].model().appendRow(self.create_item(command))
+                item = self.create_item(command)
+                if len(command) != 0 and command[0] == '<':
+                    item.setTextAlignment(Qt.AlignRight)
+                self.object[0].model().appendRow(item)
 
     @staticmethod
     def create_item(text):
@@ -100,6 +105,7 @@ class functions():
         else:
             self.object[0].model().appendRow(item)
         self.object[1].clear()
+        self.object[0].scrollToBottom()
 
     def autotest_label_return(self):
         text = self.object[1].text()
@@ -123,6 +129,7 @@ class functions():
                 item.setTextAlignment(Qt.AlignRight)
                 self.object[0].model().appendRow(item)
         self.object[1].clear()
+        self.object[0].scrollToBottom()
 
     def save_pressed(self):
         global json_object
@@ -149,8 +156,19 @@ class functions():
         self.object[2].clear()
 
     def start_command(self, command):
-        # TODO: start prolog command and return lists of answer
-        return ["asdasd\naSDASDFASDF\nasdfasdasdasdfasdf"]
+        global prolog, chosen_filename
+        print(command)
+        if prolog == None:
+            prolog = pexpect.spawn('prolog ' + chosen_filename)
+            prolog.expect('.\r\n\r\n\?-')
+        ret, res = get_output(prolog, command.encode())
+        print(ret)
+        print(res)
+        if ret == -1:
+            return "Timeout exception"
+        # prolog.kill(0)
+        # prolog = None
+        return [res + ret]
 
 class formManager():
 
@@ -228,19 +246,86 @@ class formManager():
         for index in self.mainWindow.t_labs.selectedIndexes():
             self.clicked(index)
 
+    @staticmethod
+    def fail_item(text):
+        item = QStandardItem(text)
+        item.setFlags(Qt.ItemIsEnabled)
+        item.setBackground(QBrush(QColor(255, 0, 0, 127)))
+        return item
+
+    @staticmethod
+    def success_item(text):
+        item = QStandardItem(text)
+        item.setFlags(Qt.ItemIsEnabled)
+        item.setBackground(QBrush(QColor(0, 255, 0, 127)))
+        return item
+
+
     def start_all_tests(self):
+        self.mainWindow.t_result.model().clear()
+        global chosen_filename
+        print(chosen_filename)
+        if chosen_filename == None:
+            return -1
+
+        log = open('log.txt', 'w')
         for lab in self.mainWindow.t_labs.selectedIndexes():
-            tests = json_object[lab.data()]
+            tests = json_object[lab.data()].items()
             # TODO: start all tests
-            print(tests)
+            for t in tests:
+                name, tmp = t
+                log.write(name + '\n')
+                commands = []
+                for c in tmp:
+                    commands.append(c.split('>'))
+                print(commands)
+                o, d = test(chosen_filename, commands)
+                if d:
+                    for c in d:
+                        log.write(c + '\n')
+                else:
+                    log.write('OK\n')
+                if o:
+                    item = self.success_item(name)
+                    self.mainWindow.t_result.model().appendRow(item)
+                else:
+                    item = self.fail_item(name)
+                    self.mainWindow.t_result.model().appendRow(item)
+        log.close()
 
     def start_selected_tests(self):
+        self.mainWindow.t_result.model().clear()
+        global chosen_filename
+        print(chosen_filename)
+        if chosen_filename == None:
+            return -1
+
+        log = open('log.txt', 'w')
         for lab in self.mainWindow.t_labs.selectedIndexes():
             model = self.mainWindow.t_tests.model()
             tests = [(model.index(row, 0).data(), json_object[lab.data()][model.index(row, 0).data()])
                      for row in range(model.rowCount()) if model.item(row).checkState() == QtCore.Qt.Checked]
             # TODO: start selected tests
-            print(tests)
+            for t in tests:
+                name, tmp = t
+                log.write(name + '\n')
+                commands = []
+                for c in tmp:
+                    commands.append(c.split('>'))
+                print(commands)
+                o, d = test(chosen_filename, commands)
+                if d:
+                    for c in d:
+                        log.write(c + '\n')
+                else:
+                    log.write('OK\n')
+                if o:
+                    item = self.success_item(name)
+                    self.mainWindow.t_result.model().appendRow(item)
+                else:
+                    item = self.fail_item(name)
+                    self.mainWindow.t_result.model().appendRow(item)
+        log.close()
 
     def filename_callback(self):
         global chosen_filename
@@ -258,6 +343,7 @@ class formManager():
         self.mainWindow.t_labs.setModel(QStandardItemModel())
         self.mainWindow.m_labs.setModel(QStandardItemModel())
         self.mainWindow.a_labs.setModel(QStandardItemModel())
+        self.mainWindow.t_result.setModel(QStandardItemModel())
 
         self.m_functions = functions(False, self.mainWindow.m_test, self.mainWindow.m_label, self.mainWindow.m_name,
                                      self.mainWindow.m_tests, self.mainWindow.m_labs)
