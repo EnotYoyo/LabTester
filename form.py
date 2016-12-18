@@ -88,7 +88,7 @@ class Ui_MainWindow(object):
         self.t_start.setObjectName("t_start")
         self.gridLayout.addWidget(self.t_start, 3, 2, 1, 1)
         self.t_selected = QtWidgets.QPushButton(self.test)
-        self.t_selected.setEnabled(False)
+        self.t_selected.setEnabled(True)
         self.t_selected.setAutoDefault(False)
         self.t_selected.setObjectName("t_selected")
         self.gridLayout.addWidget(self.t_selected, 3, 3, 1, 1)

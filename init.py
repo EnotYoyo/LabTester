@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt5.QtGui import *
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
@@ -11,6 +11,15 @@ from swi_prolog import *
 json_object = OrderedDict()
 chosen_filename = None
 prolog = None
+
+class CusomMessageBox(QMessageBox):
+    def __init__(self, text):
+        super(QMessageBox, self).__init__()
+        self.setWindowTitle("Warning!")
+        self.setStyleSheet("background-color: rgb(224, 255, 255);\n"
+                           "color: rgb(105, 105, 105);"
+                           "text-align: center;")
+        self.setText(text)
 
 def save_json():
     global json_object
@@ -124,9 +133,16 @@ class functions():
         self.object[0].scrollToBottom()
 
     def autotest_label_return(self):
+        global chosen_filename
+        if chosen_filename == None:
+            msg = CusomMessageBox("Please, choose prolog source file")
+            msg.exec()
+            return
+
         text = self.object[1].toPlainText()
         if len(text) == 0:
             return
+
         answer = self.start_command(text)
         item = functions.create_item(text + '>' + answer)
         if len(self.object[0].selectedIndexes()) > 0:
@@ -199,6 +215,11 @@ class formManager():
 
     # callback
     def clear_labs(self):
+        msg = CusomMessageBox("Are you sure, you want to delete all tests?")
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        ret = msg.exec_()
+        if ret == QMessageBox.No:
+            return
         global json_object
         self.mainWindow.t_labs.model().clear()
         self.mainWindow.t_tests.model().clear()
@@ -261,18 +282,17 @@ class formManager():
         item.setBackground(QBrush(QColor(0, 255, 0, 127)))
         return item
 
-
     def start_all_tests(self):
         self.mainWindow.t_result.model().clear()
         global chosen_filename
-        print(chosen_filename)
         if chosen_filename == None:
+            msg = CusomMessageBox("Please, choose prolog source file")
+            msg.exec()
             return -1
 
         log = open('log.txt', 'w')
         for lab in self.mainWindow.t_labs.selectedIndexes():
             tests = json_object[lab.data()].items()
-            # TODO: start all tests
             for t in tests:
                 name, tmp = t
                 log.write(name + '\n')
@@ -296,8 +316,9 @@ class formManager():
     def start_selected_tests(self):
         self.mainWindow.t_result.model().clear()
         global chosen_filename
-        print(chosen_filename)
         if chosen_filename == None:
+            msg = CusomMessageBox("Please, choose prolog source file")
+            msg.exec()
             return -1
 
         log = open('log.txt', 'w')
@@ -305,7 +326,6 @@ class formManager():
             model = self.mainWindow.t_tests.model()
             tests = [(model.index(row, 0).data(), json_object[lab.data()][model.index(row, 0).data()])
                      for row in range(model.rowCount()) if model.item(row).checkState() == QtCore.Qt.Checked]
-            # TODO: start selected tests
             for t in tests:
                 name, tmp = t
                 log.write(name + '\n')
@@ -334,7 +354,6 @@ class formManager():
             prolog.kill(0)
             prolog = pexpect.spawn('prolog ' + chosen_filename)
             prolog.expect('.\r\n\r\n\?-')
-
 
     def all_init(self):
         self.mainWindow.actionOpen.triggered.connect(self.filename_callback)
