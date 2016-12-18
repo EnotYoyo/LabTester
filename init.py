@@ -78,10 +78,7 @@ class functions():
         for labs in self.object[4].selectedIndexes():
             self.object[2].setText(event.data())
             for command in json_object[labs.data()][event.data()]:
-                item = self.create_item(command)
-                if len(command) != 0 and command[0] == '<':
-                    item.setTextAlignment(Qt.AlignRight)
-                self.object[0].model().appendRow(item)
+                self.object[0].model().appendRow(self.create_item(command))
 
     @staticmethod
     def create_item(text):
@@ -93,20 +90,31 @@ class functions():
     @staticmethod
     def create_not_editable_item(text):
         item = QStandardItem(text)
-        item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
+        item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
         return item
 
-    def label_return(self):
+    def release_key(self, event):
+        if not (event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
+            return
+        self.keys = []
+
+    def label_return(self, event):
+        self.object[5](event)
+        if not (event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
+            return
+        self.keys.append(event.key())
+
+        if len(self.keys) == 1:
+            return
+
         if self.autotest:
             self.autotest_label_return()
             return
 
-        text = self.object[1].text()
+        text = self.object[1].toPlainText()
         if len(text) == 0:
             return
         item = self.create_item(text)
-        if text[0] == '<':
-            item.setTextAlignment(Qt.AlignRight)
         if len(self.object[0].selectedIndexes()) > 0:
             self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + 1, item)
             self.object[0].clearSelection()
@@ -116,7 +124,7 @@ class functions():
         self.object[0].scrollToBottom()
 
     def autotest_label_return(self):
-        text = self.object[1].text()
+        text = self.object[1].toPlainText()
         if len(text) == 0:
             return
         answer = self.start_command(text)
@@ -155,17 +163,12 @@ class functions():
 
     def start_command(self, command):
         global prolog, chosen_filename
-        print(command)
         if prolog == None:
             prolog = pexpect.spawn('prolog ' + chosen_filename)
             prolog.expect('.\r\n\r\n\?-')
         ret, res = get_output(prolog, command.encode())
-        print(ret)
-        print(res)
         if ret == -1:
             return "Timeout exception"
-        # prolog.kill(0)
-        # prolog = None
         return res + ret
 
 class formManager():
@@ -276,7 +279,6 @@ class formManager():
                 commands = []
                 for c in tmp:
                     commands.append(c.split('>'))
-                print(commands)
                 o, d = test(chosen_filename, commands)
                 if d:
                     for c in d:
@@ -310,7 +312,6 @@ class formManager():
                 commands = []
                 for c in tmp:
                     commands.append(c.split('>'))
-                print(commands)
                 o, d = test(chosen_filename, commands)
                 if d:
                     for c in d:
@@ -326,8 +327,14 @@ class formManager():
         log.close()
 
     def filename_callback(self):
-        global chosen_filename
+        global chosen_filename, prolog
         chosen_filename = QFileDialog.getOpenFileName(filter='*.pl')[0]
+        self.mainWindow.label_4.setText('Selected file: ' + chosen_filename)
+        if not prolog == None:
+            prolog.kill(0)
+            prolog = pexpect.spawn('prolog ' + chosen_filename)
+            prolog.expect('.\r\n\r\n\?-')
+
 
     def all_init(self):
         self.mainWindow.actionOpen.triggered.connect(self.filename_callback)
@@ -344,9 +351,11 @@ class formManager():
         self.mainWindow.t_result.setModel(QStandardItemModel())
 
         self.m_functions = functions(False, self.mainWindow.m_test, self.mainWindow.m_label, self.mainWindow.m_name,
-                                     self.mainWindow.m_tests, self.mainWindow.m_labs)
+                                     self.mainWindow.m_tests, self.mainWindow.m_labs,
+                                     self.mainWindow.m_label.keyPressEvent)
         self.a_functions = functions(True, self.mainWindow.a_test, self.mainWindow.a_label, self.mainWindow.a_name,
-                                     self.mainWindow.a_tests, self.mainWindow.a_labs)
+                                     self.mainWindow.a_tests, self.mainWindow.a_labs,
+                                     self.mainWindow.a_label.keyPressEvent)
 
         # add functions for key-delete and esc
         self.mainWindow.m_test.keyPressEvent = self.m_functions.key_press
@@ -369,8 +378,10 @@ class formManager():
         self.mainWindow.tabWidget.tabBarClicked.connect(self.clear_selections)
 
         # when press return, then adds new element in list
-        self.mainWindow.m_label.returnPressed.connect(self.m_functions.label_return)
-        self.mainWindow.a_label.returnPressed.connect(self.a_functions.label_return)
+        self.mainWindow.m_label.keyPressEvent = self.m_functions.label_return
+        self.mainWindow.m_label.keyReleaseEvent = self.m_functions.release_key
+        self.mainWindow.a_label.keyPressEvent = self.a_functions.label_return
+        self.mainWindow.a_label.keyReleaseEvent = self.a_functions.release_key
         self.mainWindow.t_label.returnPressed.connect(self.add_lab)
 
         # add callback for save buttons
