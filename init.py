@@ -26,13 +26,15 @@ def open_json():
 
 class functions():
     # test, label, name, tests, labs
-    def __init__(self, *objects):
+    def __init__(self, autotest, *objects):
         self.object = objects
         global json_object
         self.json_object = json_object
         # this is crutch!
         # because in qt first call clicked_labs is pseudo call
         self.first_change = 1
+        self.keys = []
+        self.autotest = autotest
 
     def key_press_tests(self, event):
         if event.key() == Qt.Key_Delete:
@@ -77,19 +79,62 @@ class functions():
     @staticmethod
     def create_item(text):
         item = QStandardItem(text)
-        item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
+        item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled
+                      | Qt.ItemIsDropEnabled | Qt.ItemIsEditable)
         return item
 
-    def label_return(self):
-        text = self.object[1].text()
-        if len(text) == 0:
+    def release_key(self, event):
+        if not(event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
+            return
+        self.keys = []
+
+    def label_return(self, event):
+        self.object[5](event)
+        if not(event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
+            return
+        self.keys.append(event.key())
+
+        if len(self.keys) == 1:
+            return
+
+        if self.autotest:
+            self.autotest_label_return()
+            return
+
+        text = self.object[1].toPlainText()
+        if len(text) == 0 or (text[0] != '<' and text[0] != '>'):
             return
         item = self.create_item(text)
+        if text[0] == '<':
+            item.setTextAlignment(Qt.AlignRight)
         if len(self.object[0].selectedIndexes()) > 0:
             self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + 1, item)
             self.object[0].clearSelection()
         else:
             self.object[0].model().appendRow(item)
+        self.object[1].clear()
+
+    def autotest_label_return(self):
+        text = '>' + self.object[1].toPlainText()
+        if len(text) == 0:
+            return
+        item = functions.create_item(text)
+        answers = self.start_command(text)
+        if len(self.object[0].selectedIndexes()) > 0:
+            self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + 1, item)
+            offset = 2
+            for answer in answers:
+                item = functions.create_item('<' + answer)
+                item.setTextAlignment(Qt.AlignRight)
+                self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + offset, item)
+                offset += 1
+            self.object[0].clearSelection()
+        else:
+            self.object[0].model().appendRow(item)
+            for answer in answers:
+                item = functions.create_item('<' + answer)
+                item.setTextAlignment(Qt.AlignRight)
+                self.object[0].model().appendRow(item)
         self.object[1].clear()
 
     def save_pressed(self):
@@ -115,6 +160,9 @@ class functions():
         self.object[0].model().removeRows(0, self.object[0].model().rowCount())
         self.object[2].clear()
 
+    def start_command(self, command):
+        # TODO: start prolog command and return lists of answer
+        return ["asdasd\naSDASDFASDF\nasdfasdasdasdfasdf"]
 
 class formManager():
 
@@ -164,6 +212,9 @@ class formManager():
         self.mainWindow.t_label.clear()
 
     def load_labs(self):
+        self.mainWindow.t_labs.model().clear()
+        self.mainWindow.a_labs.model().clear()
+        self.mainWindow.m_labs.model().clear()
         for keys in self.json_object:
             self.mainWindow.t_labs.model().appendRow(functions.create_item(keys))
         for keys in self.json_object:
@@ -172,6 +223,7 @@ class formManager():
             self.mainWindow.m_labs.model().appendRow(functions.create_item(keys))
 
     def clear_selections(self):
+        self.load_labs()
         self.mainWindow.tabWidget.clearFocus()
         self.mainWindow.a_tests.model().clear()
         self.mainWindow.m_tests.model().clear()
@@ -216,10 +268,10 @@ class formManager():
         self.mainWindow.m_labs.setModel(QStandardItemModel())
         self.mainWindow.a_labs.setModel(QStandardItemModel())
 
-        self.m_functions = functions(self.mainWindow.m_test, self.mainWindow.m_label,
-                                self.mainWindow.m_name, self.mainWindow.m_tests, self.mainWindow.m_labs)
-        self.a_functions = functions(self.mainWindow.a_test, self.mainWindow.a_label,
-                                self.mainWindow.a_name, self.mainWindow.a_tests, self.mainWindow.a_labs)
+        self.m_functions = functions(False, self.mainWindow.m_test, self.mainWindow.m_label, self.mainWindow.m_name,
+                                self.mainWindow.m_tests, self.mainWindow.m_labs, self.mainWindow.m_label.keyPressEvent)
+        self.a_functions = functions(True, self.mainWindow.a_test, self.mainWindow.a_label, self.mainWindow.a_name,
+                                self.mainWindow.a_tests, self.mainWindow.a_labs, self.mainWindow.a_label.keyPressEvent)
 
         # add functions for key-delete and esc
         self.mainWindow.m_test.keyPressEvent = self.m_functions.key_press
@@ -241,15 +293,11 @@ class formManager():
         self.mainWindow.m_labs.clicked[QtCore.QModelIndex].connect(self.m_functions.clicked_labs)
         self.mainWindow.tabWidget.tabBarClicked.connect(self.clear_selections)
 
-        # add validators
-        validator = QtCore.QRegExp('[><][\w\s\[\]\,\(\)\.]{1,}$')
-        self.mainWindow.m_label.setValidator(QRegExpValidator(validator))
-        validator = QtCore.QRegExp('[\w\s\[\]\,\(\)\.]{1,}$')
-        self.mainWindow.a_label.setValidator(QRegExpValidator(validator))
-
         # when press return, then adds new element in list
-        self.mainWindow.m_label.returnPressed.connect(self.m_functions.label_return)
-        self.mainWindow.a_label.returnPressed.connect(self.a_functions.label_return)
+        self.mainWindow.m_label.keyPressEvent = self.m_functions.label_return
+        self.mainWindow.m_label.keyReleaseEvent = self.m_functions.release_key
+        self.mainWindow.a_label.keyPressEvent = self.a_functions.label_return
+        self.mainWindow.a_label.keyReleaseEvent = self.a_functions.release_key
         self.mainWindow.t_label.returnPressed.connect(self.add_lab)
 
         # add callback for save buttons
