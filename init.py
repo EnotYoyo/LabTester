@@ -28,8 +28,6 @@ class functions():
     # test, label, name, tests, labs
     def __init__(self, autotest, *objects):
         self.object = objects
-        global json_object
-        self.json_object = json_object
         # this is crutch!
         # because in qt first call clicked_labs is pseudo call
         self.first_change = 1
@@ -57,15 +55,17 @@ class functions():
             self.object[0].clearSelection()
 
     def clicked_labs(self, event):
+        global json_object
         if self.first_change == 1:
             self.first_change = 0
             return
         self.object[3].model().clear()
         self.clear()
-        for test in self.json_object[event.data()]:
+        for test in json_object[event.data()]:
             self.object[3].model().appendRow(self.create_item(test))
 
     def clicked_tests(self, event):
+        global json_object
         if len(self.object[3].selectedIndexes()) == 0:
             return
         self.object[0].model().clear()
@@ -73,7 +73,7 @@ class functions():
         self.object[2].clear()
         for labs in self.object[4].selectedIndexes():
             self.object[2].setText(event.data())
-            for command in self.json_object[labs.data()][event.data()]:
+            for command in json_object[labs.data()][event.data()]:
                 self.object[0].model().appendRow(self.create_item(command))
 
     @staticmethod
@@ -83,25 +83,12 @@ class functions():
                       | Qt.ItemIsDropEnabled | Qt.ItemIsEditable)
         return item
 
-    def release_key(self, event):
-        if not(event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
-            return
-        self.keys = []
-
-    def label_return(self, event):
-        self.object[5](event)
-        if not(event.key() == Qt.Key_Control or event.key() == Qt.Key_Return):
-            return
-        self.keys.append(event.key())
-
-        if len(self.keys) == 1:
-            return
-
+    def label_return(self):
         if self.autotest:
             self.autotest_label_return()
             return
 
-        text = self.object[1].toPlainText()
+        text = self.object[1].text()
         if len(text) == 0 or (text[0] != '<' and text[0] != '>'):
             return
         item = self.create_item(text)
@@ -115,11 +102,11 @@ class functions():
         self.object[1].clear()
 
     def autotest_label_return(self):
-        text = '>' + self.object[1].toPlainText()
+        text = self.object[1].text()
         if len(text) == 0:
             return
-        item = functions.create_item(text)
         answers = self.start_command(text)
+        item = functions.create_item('>' + text)
         if len(self.object[0].selectedIndexes()) > 0:
             self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + 1, item)
             offset = 2
@@ -138,6 +125,7 @@ class functions():
         self.object[1].clear()
 
     def save_pressed(self):
+        global json_object
         if len(self.object[4].selectedIndexes()) == 0:
             return
         text = self.object[2].text()
@@ -145,13 +133,13 @@ class functions():
         if len(text) == 0 or count == 0:
             return
 
-        if not(text in self.json_object[self.object[4].selectedIndexes()[0].data()]):
+        if not(text in json_object[self.object[4].selectedIndexes()[0].data()]):
             self.object[3].model().appendRow(functions.create_item(text))
         test = []
         for row in range(count):
             row = self.object[0].model().index(row, 0)
             test.append(self.object[0].model().itemData(row)[0])
-        self.json_object[self.object[4].selectedIndexes()[0].data()][text] = test
+        json_object[self.object[4].selectedIndexes()[0].data()][text] = test
         save_json()
         self.clear()
 
@@ -169,13 +157,12 @@ class formManager():
     def __init__(self, widget):
         self.mainWindow = form.Ui_MainWindow()
         self.mainWindow.setupUi(MainWindow=widget)
-        global json_object
-        self.json_object = json_object
 
     # callback
     def clicked(self, event):
+        global json_object
         self.mainWindow.t_tests.model().clear()
-        for test in self.json_object[event.data()]:
+        for test in json_object[event.data()]:
             item = QStandardItem(test)
             item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
             item.setCheckable(True)
@@ -193,33 +180,37 @@ class formManager():
 
     # callback
     def clear_labs(self):
+        global json_object
         self.mainWindow.t_labs.model().clear()
+        self.mainWindow.t_tests.model().clear()
         self.mainWindow.m_tests.model().clear()
         self.mainWindow.a_tests.model().clear()
         self.m_functions.clear()
         self.a_functions.clear()
-        self.json_object = OrderedDict()
+        json_object = OrderedDict()
         save_json()
 
     # callback
     def add_lab(self):
+        global json_object
         text = self.mainWindow.t_label.text()
-        if len(text) == 0 or text in self.json_object:
+        if len(text) == 0 or text in json_object:
             return
-        self.json_object[text] = OrderedDict()
+        json_object[text] = OrderedDict()
         save_json()
         self.mainWindow.t_labs.model().appendRow(functions.create_item(text))
         self.mainWindow.t_label.clear()
 
     def load_labs(self):
+        global json_object
         self.mainWindow.t_labs.model().clear()
         self.mainWindow.a_labs.model().clear()
         self.mainWindow.m_labs.model().clear()
-        for keys in self.json_object:
+        for keys in json_object:
             self.mainWindow.t_labs.model().appendRow(functions.create_item(keys))
-        for keys in self.json_object:
+        for keys in json_object:
             self.mainWindow.a_labs.model().appendRow(functions.create_item(keys))
-        for keys in self.json_object:
+        for keys in json_object:
             self.mainWindow.m_labs.model().appendRow(functions.create_item(keys))
 
     def clear_selections(self):
@@ -269,9 +260,9 @@ class formManager():
         self.mainWindow.a_labs.setModel(QStandardItemModel())
 
         self.m_functions = functions(False, self.mainWindow.m_test, self.mainWindow.m_label, self.mainWindow.m_name,
-                                self.mainWindow.m_tests, self.mainWindow.m_labs, self.mainWindow.m_label.keyPressEvent)
+                                     self.mainWindow.m_tests, self.mainWindow.m_labs)
         self.a_functions = functions(True, self.mainWindow.a_test, self.mainWindow.a_label, self.mainWindow.a_name,
-                                self.mainWindow.a_tests, self.mainWindow.a_labs, self.mainWindow.a_label.keyPressEvent)
+                                     self.mainWindow.a_tests, self.mainWindow.a_labs)
 
         # add functions for key-delete and esc
         self.mainWindow.m_test.keyPressEvent = self.m_functions.key_press
@@ -294,10 +285,8 @@ class formManager():
         self.mainWindow.tabWidget.tabBarClicked.connect(self.clear_selections)
 
         # when press return, then adds new element in list
-        self.mainWindow.m_label.keyPressEvent = self.m_functions.label_return
-        self.mainWindow.m_label.keyReleaseEvent = self.m_functions.release_key
-        self.mainWindow.a_label.keyPressEvent = self.a_functions.label_return
-        self.mainWindow.a_label.keyReleaseEvent = self.a_functions.release_key
+        self.mainWindow.m_label.returnPressed.connect(self.m_functions.label_return)
+        self.mainWindow.a_label.returnPressed.connect(self.a_functions.label_return)
         self.mainWindow.t_label.returnPressed.connect(self.add_lab)
 
         # add callback for save buttons
