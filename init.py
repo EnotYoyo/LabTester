@@ -62,9 +62,11 @@ class functions():
             self.first_change = 0
             return
         self.object[3].model().clear()
-        self.clear()
+        for index in self.object[4].selectedIndexes():
+            if index.data() != event.data():
+                self.clear()
         for test in json_object[event.data()]:
-            self.object[3].model().appendRow(self.create_item(test))
+            self.object[3].model().appendRow(self.create_not_editable_item(test))
 
     def clicked_tests(self, event):
         global json_object
@@ -88,13 +90,19 @@ class functions():
                       | Qt.ItemIsDropEnabled | Qt.ItemIsEditable)
         return item
 
+    @staticmethod
+    def create_not_editable_item(text):
+        item = QStandardItem(text)
+        item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)
+        return item
+
     def label_return(self):
         if self.autotest:
             self.autotest_label_return()
             return
 
         text = self.object[1].text()
-        if len(text) == 0 or (text[0] != '<' and text[0] != '>'):
+        if len(text) == 0:
             return
         item = self.create_item(text)
         if text[0] == '<':
@@ -111,23 +119,13 @@ class functions():
         text = self.object[1].text()
         if len(text) == 0:
             return
-        answers = self.start_command(text)
-        item = functions.create_item('>' + text)
+        answer = self.start_command(text)
+        item = functions.create_item(text + '>' + answer)
         if len(self.object[0].selectedIndexes()) > 0:
             self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + 1, item)
-            offset = 2
-            for answer in answers:
-                item = functions.create_item('<' + answer)
-                item.setTextAlignment(Qt.AlignRight)
-                self.object[0].model().insertRow(self.object[0].selectedIndexes()[0].row() + offset, item)
-                offset += 1
             self.object[0].clearSelection()
         else:
             self.object[0].model().appendRow(item)
-            for answer in answers:
-                item = functions.create_item('<' + answer)
-                item.setTextAlignment(Qt.AlignRight)
-                self.object[0].model().appendRow(item)
         self.object[1].clear()
         self.object[0].scrollToBottom()
 
@@ -141,7 +139,7 @@ class functions():
             return
 
         if not(text in json_object[self.object[4].selectedIndexes()[0].data()]):
-            self.object[3].model().appendRow(functions.create_item(text))
+            self.object[3].model().appendRow(functions.create_not_editable_item(text))
         test = []
         for row in range(count):
             row = self.object[0].model().index(row, 0)
@@ -168,7 +166,7 @@ class functions():
             return "Timeout exception"
         # prolog.kill(0)
         # prolog = None
-        return [res + ret]
+        return res + ret
 
 class formManager():
 
@@ -216,7 +214,7 @@ class formManager():
             return
         json_object[text] = OrderedDict()
         save_json()
-        self.mainWindow.t_labs.model().appendRow(functions.create_item(text))
+        self.mainWindow.t_labs.model().appendRow(functions.create_not_editable_item(text))
         self.mainWindow.t_label.clear()
 
     def load_labs(self):
@@ -225,11 +223,11 @@ class formManager():
         self.mainWindow.a_labs.model().clear()
         self.mainWindow.m_labs.model().clear()
         for keys in json_object:
-            self.mainWindow.t_labs.model().appendRow(functions.create_item(keys))
+            self.mainWindow.t_labs.model().appendRow(functions.create_not_editable_item(keys))
         for keys in json_object:
-            self.mainWindow.a_labs.model().appendRow(functions.create_item(keys))
+            self.mainWindow.a_labs.model().appendRow(functions.create_not_editable_item(keys))
         for keys in json_object:
-            self.mainWindow.m_labs.model().appendRow(functions.create_item(keys))
+            self.mainWindow.m_labs.model().appendRow(functions.create_not_editable_item(keys))
 
     def clear_selections(self):
         self.load_labs()
